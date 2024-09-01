@@ -68,7 +68,11 @@ class TonConnect {
 
   /// Generates universal link for an external wallet and subscribes to the wallet's bridge,
   /// or sends connect request to the injected wallet.
-  Future<String> connect(WalletApp wallet, [dynamic request]) async {
+  Future<String> connect(
+    WalletApp wallet,
+    String? tgBotUrl, [
+    dynamic request,
+  ]) async {
     if (connected) {
       throw WalletAlreadyConnectedError(null);
     }
@@ -79,7 +83,7 @@ class TonConnect {
 
     provider = _createProvider(wallet);
 
-    return await provider!.connect(_createConnectRequest(request));
+    return await provider!.connect(_createConnectRequest(request), tgBotUrl);
   }
 
   /// Try to restore existing session and reconnect to the corresponding wallet.

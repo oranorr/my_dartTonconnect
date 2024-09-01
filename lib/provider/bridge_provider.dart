@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:developer';
 
 import 'package:darttonconnect/crypto/session_crypto.dart';
 import 'package:darttonconnect/models/wallet_app.dart';
@@ -33,13 +34,14 @@ class BridgeProvider extends BaseProvider {
     _listeners = [];
   }
 
-  Future<String> connect(Map<String, dynamic> request) async {
+  Future<String> connect(Map<String, dynamic> request, String? tgBotUrl) async {
     _closeGateways();
     final sessionCrypto = SessionCrypto();
 
     String bridgeUrl = _wallet?.bridgeUrl ?? '';
-    String universalUrl = _wallet?.universalUrl ?? BridgeProvider.standartUniversalUrl;
-    
+    String universalUrl =
+        _wallet?.universalUrl ?? BridgeProvider.standartUniversalUrl;
+
     _gateway = BridgeGateway(
       _storage,
       bridgeUrl,
@@ -53,7 +55,7 @@ class BridgeProvider extends BaseProvider {
     _session.sessionCrypto = sessionCrypto;
     _session.bridgeUrl = bridgeUrl;
 
-    return _generateUniversalUrl(universalUrl, request);
+    return _generateUniversalUrl(universalUrl, request, tgBotUrl);
   }
 
   @override
@@ -250,17 +252,48 @@ class BridgeProvider extends BaseProvider {
   }
 
   String _generateUniversalUrl(
-      String universalUrl, Map<String, dynamic> request) {
+      String universalUrl, Map<String, dynamic> request, String? tgBotLink) {
     const version = 2;
     final sessionId = _session.sessionCrypto.sessionId;
-    final requestSafe = Uri.encodeComponent(jsonEncode(request));
+    bool istg = _wallet!.name == 'Wallet';
+    // print(request);
+    if (!istg) {
+      final requestSafe = Uri.encodeComponent(jsonEncode(request));
 
-    final url = '$universalUrl?v=$version&id=$sessionId&r=$requestSafe';
+      final url = '$universalUrl?v=$version&id=$sessionId&r=$requestSafe';
 
-    return url;
+      return url;
+    } else {
+      final requestSafe = Uri.encodeComponent(jsonEncode(request));
+      final String startattach =
+          'tonconnect-${_encodeTelegramUrlParameters('v=$version&id=$sessionId&r=$requestSafe')}';
+      // String url = '$universalUrl&startattach=$startattach';
+      String url =
+          'https://t.me/wallet?startapp=m1000?attach=wallet&startattach=$startattach';
+      if (tgBotLink != null) {
+        // String botappend = '-ret=$tgBotLink';
+        final botSafe = Uri.encodeComponent(jsonEncode(tgBotLink));
+        final sub = botSafe.substring(3, botSafe.length - 3);
+        log(botSafe);
+        String botencode = _encodeTelegramUrlParameters('ret=none');
+        // url = '$url-ret=$tgBotLink';
+        url = '$url-$botencode';
+      }
+      return url;
+    }
   }
 
   void _closeGateways() {
     _gateway?.close();
+  }
+
+  String _encodeTelegramUrlParameters(String search) {
+    return search
+        .replaceAll('.', '%2E')
+        .replaceAll('-', '%2D')
+        .replaceAll('_', '%5F')
+        .replaceAll('&', '-')
+        .replaceAll('=', '__')
+        .replaceAll('%', '--');
   }
 }
